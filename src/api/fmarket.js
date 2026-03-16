@@ -27,21 +27,47 @@ export async function fetchCurrentNavs() {
         const data = await response.json();
         
         // Match with our defined list to ensure order and presence
-        const results = VCBF_FUNDS.map(fund => {
+        const results = await Promise.all(VCBF_FUNDS.map(async fund => {
             const apiData = data.data.rows.find(f => f.id === fund.id);
             if (apiData) {
+                // Fmarket API often returns null for navToPrevious for VCBF funds.
+                // We fetch the last 2 records from history to calculate it manually.
+                let change = apiData.navToPrevious || 0;
+                let changePercent = 0;
+                let navDate = apiData.navDate;
+                
+                if (change === 0) {
+                    try {
+                        const history = await fetchHistory(fund.id, "", "");
+                        // history is returned reversed (older first) because of our fetchHistory function
+                        // So we look at the last 2 items
+                        if (history.length >= 2) {
+                            const latest = history[history.length - 1];
+                            const previous = history[history.length - 2];
+                            change = latest.nav - previous.nav;
+                            navDate = latest.navDate; // use the exact date from history
+                        }
+                    } catch (e) {
+                         console.error("Failed to fetch history for change calc", e);
+                    }
+                }
+
+                if (apiData.nav && change !== 0) {
+                   changePercent = (change / (apiData.nav - change)) * 100;
+                }
+
                 return {
                     ...fund,
                     nav: apiData.nav,
-                    navDate: apiData.navDate,
-                    change: apiData.navToPrevious,
-                    changePercent: apiData.navToPrevious / (apiData.nav - apiData.navToPrevious) * 100,
+                    navDate: navDate,
+                    change: change,
+                    changePercent: changePercent,
                     vnpayId: apiData.vnpayId,
                     totalAsset: apiData.totalAsset
                 };
             }
             return fund;
-        });
+        }));
         
         return results;
     } catch (e) {
