@@ -39,13 +39,18 @@ export async function fetchCurrentNavs() {
                 if (change === 0) {
                     try {
                         const history = await fetchHistory(fund.id, "", "");
-                        // history is returned reversed (older first) because of our fetchHistory function
-                        // So we look at the last 2 items
+                        // fetchHistory reverses the fmarket data, so:
+                        // history[history.length - 1] is the LATEST
+                        // history[history.length - 2] is the PREVIOUS
                         if (history.length >= 2) {
                             const latest = history[history.length - 1];
                             const previous = history[history.length - 2];
                             change = latest.nav - previous.nav;
-                            navDate = latest.navDate; // use the exact date from history
+                            
+                            // Important: Use the latest.nav as the real nav if Fmarket's summary API is lagging!
+                            // The user noted summary says 11602 but actual is 11562
+                            apiData.nav = latest.nav;
+                            navDate = latest.navDate;
                         }
                     } catch (e) {
                          console.error("Failed to fetch history for change calc", e);
