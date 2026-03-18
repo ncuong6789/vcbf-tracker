@@ -4,7 +4,9 @@ import FundCard from './components/FundCard';
 import NavChart from './components/NavChart';
 import Calculator from './components/Calculator';
 import Portfolio from './components/Portfolio';
-import { LineChart, Calculator as CalcIcon, LayoutDashboard, History, Wallet } from 'lucide-react';
+import FundHoldings from './components/FundHoldings';
+import GoldPrice from './components/GoldPrice';
+import { LineChart, Calculator as CalcIcon, LayoutDashboard, History, Wallet, PieChart } from 'lucide-react';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -12,18 +14,24 @@ function App() {
   const [activeFund, setActiveFund] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   // Fetch initial real-time funds
   useEffect(() => {
     async function init() {
+      setLoading(true);
       const data = await fetchCurrentNavs();
       setFunds(data);
       if (data.length > 0) {
         setActiveFund(data.find(f => f.shortName === 'BCF') || data[0]);
       }
+      setLastUpdated(new Date());
       setLoading(false);
     }
     init();
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(init, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Fetch history when active fund changes
@@ -40,6 +48,14 @@ function App() {
     }
   }, [activeFund, activeTab]);
 
+  // Update activeFund after fund data refreshes (keep selection in sync)
+  useEffect(() => {
+    if (activeFund && funds.length > 0) {
+      const updated = funds.find(f => f.id === activeFund.id);
+      if (updated) setActiveFund(updated);
+    }
+  }, [funds]);
+
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
@@ -53,6 +69,13 @@ function App() {
               style={{ background: 'transparent', border: 'none', textAlign: 'left', width: '100%' }}
             >
               <LayoutDashboard size={20} /> Dashboard
+            </button>
+            <button 
+              className={`nav-item ${activeTab === 'holdings' ? 'active' : ''}`}
+              onClick={() => setActiveTab('holdings')}
+              style={{ background: 'transparent', border: 'none', textAlign: 'left', width: '100%' }}
+            >
+              <PieChart size={20} /> Danh mục quỹ
             </button>
             <button 
               className={`nav-item ${activeTab === 'portfolio' ? 'active' : ''}`}
@@ -78,8 +101,12 @@ function App() {
           </div>
         </div>
         <div className="px-4 text-sm text-muted mt-auto">
-          <p>Real-time data from Fmarket</p>
-          <p className="mt-2 text-xs">Updated: {new Date().toLocaleDateString('vi-VN')}</p>
+          <p>Dữ liệu từ Fmarket</p>
+          {lastUpdated && (
+            <p className="mt-1 text-xs">
+              Cập nhật: {lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
         </div>
       </nav>
 
@@ -88,14 +115,14 @@ function App() {
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-xl animate-fade-in-up text-green" style={{textShadow: '0 0 10px var(--primary-glow)'}}>
-              Loading VCBF data...
+              Đang tải dữ liệu VCBF...
             </div>
           </div>
         ) : (
           <>
-            {/* Top Funds Row - Visible on Dashboard and History */}
-            {(activeTab === 'dashboard' || activeTab === 'history') && (
-              <div className="animate-fade-in-up mb-8">
+            {/* Top Funds Row - Visible on Dashboard, Holdings and History */}
+            {(activeTab === 'dashboard' || activeTab === 'history' || activeTab === 'holdings') && (
+              <div className="animate-fade-in-up mb-6">
                 <h2 className="text-2xl font-bold mb-4">VCBF Open-Ended Funds {" "}
                   <span className="text-sm font-normal text-muted bg-green/10 text-green px-2 py-1 rounded" style={{background: 'rgba(46, 160, 67, 0.1)'}}>LIVE</span>
                 </h2>
@@ -113,16 +140,59 @@ function App() {
               </div>
             )}
 
-            {/* Dashboard View */}
+            {/* Dashboard View - Chart + Gold Price */}
             {activeTab === 'dashboard' && activeFund && (
               <div className="animate-fade-in-up animate-delay-2">
+                {/* Gold Price Widget */}
+                <div className="mb-6">
+                  <GoldPrice />
+                </div>
+
+                {/* Performance Summary for active fund */}
+                {activeFund.navTo1Month !== undefined && (
+                  <div className="glass-panel p-4 mb-6">
+                    <h3 className="font-bold mb-3" style={{ color: 'var(--primary-color)' }}>
+                      Hiệu suất {activeFund.shortName} (%)
+                    </h3>
+                    <div className="perf-grid">
+                      {[
+                        { label: '1 Tháng', val: activeFund.navTo1Month },
+                        { label: '3 Tháng', val: activeFund.navTo3Months },
+                        { label: '6 Tháng', val: activeFund.navTo6Months },
+                        { label: '12 Tháng', val: activeFund.navTo12Months },
+                        { label: '36 Tháng', val: activeFund.navTo36Months },
+                        { label: 'Từ đầu', val: activeFund.navToEstablish },
+                      ].map(({ label, val }) => (
+                        val !== null && val !== undefined ? (
+                          <div key={label} className="perf-item">
+                            <div className="text-muted text-xs">{label}</div>
+                            <div className={`font-bold text-lg ${val >= 0 ? 'text-green' : 'text-red'}`}>
+                              {val >= 0 ? '+' : ''}{val?.toFixed(2)}%
+                            </div>
+                          </div>
+                        ) : null
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-end mb-4">
                   <div>
                     <h3 className="text-xl font-bold">{activeFund.fullName} ({activeFund.shortName})</h3>
-                    <p className="text-muted">Net Asset Value Performance (3 Years)</p>
+                    <p className="text-muted">Biến động NAV (3 năm)</p>
                   </div>
                 </div>
                 <NavChart data={historyData} />
+              </div>
+            )}
+
+            {/* Holdings View */}
+            {activeTab === 'holdings' && activeFund && (
+              <div className="animate-fade-in-up animate-delay-1">
+                <h3 className="text-xl font-bold mb-4">
+                  Danh mục đầu tư – {activeFund.fullName} ({activeFund.shortName})
+                </h3>
+                <FundHoldings fund={activeFund} />
               </div>
             )}
 
@@ -144,12 +214,12 @@ function App() {
                     <table className="w-full text-left" style={{ borderCollapse: 'collapse' }}>
                         <thead style={{ position: 'sticky', top: 0, background: 'var(--panel-bg)', backdropFilter: 'var(--glass-blur)' }}>
                         <tr>
-                            <th className="p-2 border-b" style={{ borderColor: 'var(--panel-border)' }}>Date</th>
+                            <th className="p-2 border-b" style={{ borderColor: 'var(--panel-border)' }}>Ngày</th>
                             <th className="p-2 border-b text-right" style={{ borderColor: 'var(--panel-border)' }}>NAV (VND)</th>
                         </tr>
                         </thead>
                         <tbody>
-                        {[...historyData].map((d, i) => (
+                        {[...historyData].reverse().map((d, i) => (
                             <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td className="p-2">{new Date(d.navDate).toLocaleDateString('vi-VN')}</td>
                             <td className="p-2 font-semibold text-right">{(d.nav).toLocaleString('vi-VN')}</td>
