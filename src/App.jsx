@@ -44,9 +44,22 @@ function App() {
       const fromDate = threeYearsAgo.toISOString().split('T')[0];
       const toDate = today.toISOString().split('T')[0];
       
-      fetchHistory(activeFund.id, fromDate, toDate).then(setHistoryData);
+      fetchHistory(activeFund.id, fromDate, toDate).then(history => {
+        // Fmarket history API may lag behind by months.
+        // Append the current NAV as today's data point to bridge the gap.
+        if (activeFund.nav) {
+          const todayStr = today.toISOString().split('T')[0];
+          const lastEntry = history[history.length - 1];
+          // Only add if today isn't already the last point
+          if (!lastEntry || lastEntry.navDate !== todayStr) {
+            history = [...history, { navDate: todayStr, nav: activeFund.nav, productId: activeFund.id }];
+          }
+        }
+        setHistoryData(history);
+      });
     }
   }, [activeFund, activeTab]);
+
 
   // Update activeFund after fund data refreshes (keep selection in sync)
   useEffect(() => {

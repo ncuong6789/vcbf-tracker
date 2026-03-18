@@ -29,6 +29,9 @@ export async function fetchCurrentNavs() {
         const navToPrevious = navChange.navToPrevious || 0; // percentage change
         // Convert percent to VND change
         const changeVnd = nav ? (nav * navToPrevious) / (100 + navToPrevious) : 0;
+        // Use productNavChange.updateAt for actual NAV date (product updateAt is stale)
+        const navDateRaw = navChange.updateAt ? new Date(navChange.updateAt) : new Date();
+        const navDate = navDateRaw.toISOString().split('T')[0];
 
         return {
           ...fund,
@@ -88,36 +91,43 @@ export async function fetchHistory(productId, fromDate, toDate) {
 }
 
 /**
- * Fetch real-time gold price using Yahoo Finance API (GC=F = gold futures USD/oz)
- * and USD/VND conversion from exchangerate API
+ * Fetch real-time gold price using Yahoo Finance API via CORS proxy.
+ * api.allorigins.win acts as a CORS proxy, wrapping the response as JSON.
+ * GC=F = Gold Futures (COMEX, USD/oz)
+ * USDVND=X = USD/VND exchange rate
  */
 export async function fetchGoldPrice() {
   try {
-    // Fetch gold price (USD/oz) from Yahoo Finance
+    const proxyUrl = (url) => 
+      `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+
     const [goldRes, fxRes] = await Promise.all([
-      fetch('https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=1d&range=1d', {
-        headers: { 'Accept': 'application/json' }
-      }),
-      fetch('https://query1.finance.yahoo.com/v8/finance/chart/USDVND%3DX?interval=1d&range=1d', {
-        headers: { 'Accept': 'application/json' }
-      })
+      fetch(proxyUrl('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=1d')),
+      fetch(proxyUrl('https://query1.finance.yahoo.com/v8/finance/chart/USDVND=X?interval=1d&range=1d'))
     ]);
 
-    const goldData = await goldRes.json();
-    const fxData = await fxRes.json();
+    const goldWrapper = await goldRes.json();
+    const fxWrapper = await fxRes.json();
 
-    const goldUsd = goldData?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    const usdVnd = fxData?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    // allorigins wraps response in { contents: "..." }
+    const goldData = JSON.parse(goldWrapper.contents);
+    const fxData = JSON.parse(fxWrapper.contents);
+
+    const goldMeta = goldData?.chart?.result?.[0]?.meta;
+    const fxMeta = fxData?.chart?.result?.[0]?.meta;
+
+    const goldUsd = goldMeta?.regularMarketPrice;
+    const usdVnd = fxMeta?.regularMarketPrice;
+    const prevGoldUsd = goldMeta?.previousClose;
 
     if (!goldUsd || !usdVnd) return null;
 
-    const goldVndOz = goldUsd * usdVnd;
-    const goldVndChi = goldVndOz / 26.67; // 1 troy oz ≈ 26.67 chi (1 chi = 3.75g, 1 oz = 31.1g)
-    const goldVndLuong = goldVndChi * 10; // 1 luong = 10 chi
-    
-    const prevGoldUsd = goldData?.chart?.result?.[0]?.meta?.previousClose;
     const changeUsd = prevGoldUsd ? goldUsd - prevGoldUsd : 0;
     const changePercent = prevGoldUsd ? (changeUsd / prevGoldUsd) * 100 : 0;
+
+    const goldVndOz = goldUsd * usdVnd;
+    const goldVndChi = goldVndOz / 26.67; // 1 troy oz ≈ 26.67 chi (1 chi = 3.75g, 1 oz = 31.1035g)
+    const goldVndLuong = goldVndChi * 10; // 1 luong = 10 chi
 
     return {
       priceUsdOz: goldUsd,
