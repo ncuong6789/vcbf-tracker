@@ -36,7 +36,7 @@ export async function fetchCurrentNavs() {
         return {
           ...fund,
           nav: nav,
-          navDate: detail.updateAt ? new Date(detail.updateAt).toISOString().split('T')[0] : null,
+          navDate: navDate,
           change: changeVnd,
           changePercent: navToPrevious,
           // Performance data
