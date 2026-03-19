@@ -170,6 +170,15 @@ export async function fetchComparisonData(fundsList, fromDate, toDate) {
         const growth = ((point.nav - baseNav) / baseNav * 100);
         dateMap[date][fund.shortName] = growth;
       });
+
+      // Inject today's live NAV to bridge the December 2025 gap
+      if (fund.nav && fund.navDate) {
+        const liveDate = fund.navDate;
+        if (!dateMap[liveDate]) dateMap[liveDate] = { date: liveDate };
+        
+        const liveGrowth = ((fund.nav - baseNav) / baseNav * 100);
+        dateMap[liveDate][fund.shortName] = liveGrowth;
+      }
     });
 
     // Convert map to array and sort chronologically

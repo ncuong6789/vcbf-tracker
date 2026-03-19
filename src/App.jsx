@@ -62,7 +62,7 @@ function App() {
 
   // Fetch comparison data
   useEffect(() => {
-    if (activeTab === 'compare') {
+    if (activeTab === 'compare' && funds.length > 0) {
       const today = new Date();
       const threeYearsAgo = new Date();
       threeYearsAgo.setFullYear(today.getFullYear() - 3);
@@ -70,9 +70,9 @@ function App() {
       const fromDate = threeYearsAgo.toISOString().split('T')[0];
       const toDate = today.toISOString().split('T')[0];
       
-      fetchComparisonData(VCBF_FUNDS, fromDate, toDate).then(setCompareData);
+      fetchComparisonData(funds, fromDate, toDate).then(setCompareData);
     }
-  }, [activeTab]);
+  }, [activeTab, funds]);
 
 
   // Update activeFund after fund data refreshes (keep selection in sync)
