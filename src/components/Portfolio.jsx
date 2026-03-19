@@ -57,18 +57,18 @@ export default function Portfolio({ funds }) {
     <div className="glass-panel p-6 animate-fade-in-up">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold flex items-center gap-2">
-          <Wallet className="text-green" /> My Portfolio (Danh mục của tôi)
+          <Wallet className="text-green" /> My Portfolio
         </h2>
         <button 
           className="btn btn-secondary text-sm px-3 py-1"
           onClick={isEditing ? stopEditing : startEditing}
         >
-          {isEditing ? 'Xong (Done)' : 'Sửa số lượng CCQ'}
+          {isEditing ? 'Done' : 'Edit Quantity'}
         </button>
       </div>
 
       <div className="mb-8 p-6 rounded-lg text-center" style={{ background: 'rgba(46, 160, 67, 0.1)', border: '1px solid var(--primary-color)' }}>
-        <p className="text-muted mb-2">Tổng tài sản ước tính (Estimated Total Value)</p>
+        <p className="text-muted mb-2">Estimated Total Value</p>
         <h3 className="text-3xl font-bold text-green" style={{ textShadow: '0 0 20px var(--primary-glow)' }}>
           {totalValue.toLocaleString('vi-VN')} <span className="text-xl">VND</span>
         </h3>
@@ -88,7 +88,7 @@ export default function Portfolio({ funds }) {
               
               {isEditing ? (
                 <div className="flex flex-col mt-4">
-                  <label className="text-xs text-muted mb-1">Số lượng CCQ (ví dụ: 1.4)</label>
+                  <label className="text-xs text-muted mb-1">Quantity (e.g. 1.4 or 1200)</label>
                   <input 
                     type="text"
                     inputMode="decimal"
@@ -98,13 +98,13 @@ export default function Portfolio({ funds }) {
                     className="p-2 text-sm"
                   />
                   <span className="text-xs text-muted mt-1">
-                    Giá hiện tại: {(fund.nav || 0).toLocaleString('vi-VN')} VND/CCQ
+                    Current Price: {(fund.nav || 0).toLocaleString('vi-VN')} VND/CCQ
                   </span>
                 </div>
               ) : (
                 <div className="mt-2 text-sm text-muted flex justify-between">
-                  <span>Sở hữu: <strong className="text-white">{amount.toLocaleString('vi-VN', { maximumFractionDigits: 4 })} CCQ</strong></span>
-                  <span>Giá: {(fund.nav || 0).toLocaleString('vi-VN')}</span>
+                  <span>Owned: <strong className="text-white">{amount.toLocaleString('vi-VN', { maximumFractionDigits: 4 })} CCQ</strong></span>
+                  <span>Price: {(fund.nav || 0).toLocaleString('vi-VN')}</span>
                 </div>
               )}
             </div>

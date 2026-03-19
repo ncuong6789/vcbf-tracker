@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { fetchCurrentNavs, fetchHistory, VCBF_FUNDS } from './api/fmarket';
+import { fetchCurrentNavs, fetchHistory, fetchComparisonData, VCBF_FUNDS } from './api/fmarket';
 import FundCard from './components/FundCard';
 import NavChart from './components/NavChart';
+import CompareChart from './components/CompareChart';
 import Calculator from './components/Calculator';
 import Portfolio from './components/Portfolio';
 import FundHoldings from './components/FundHoldings';
-import GoldPrice from './components/GoldPrice';
 import { LineChart, Calculator as CalcIcon, LayoutDashboard, History, Wallet, PieChart } from 'lucide-react';
 
 function App() {
@@ -13,6 +13,7 @@ function App() {
   const [funds, setFunds] = useState([]);
   const [activeFund, setActiveFund] = useState(null);
   const [historyData, setHistoryData] = useState([]);
+  const [compareData, setCompareData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
 
@@ -45,7 +46,6 @@ function App() {
       const toDate = today.toISOString().split('T')[0];
       
       fetchHistory(activeFund.id, fromDate, toDate).then(history => {
-        // Fmarket history API may lag behind by months.
         // Append the current NAV as today's data point to bridge the gap.
         if (activeFund.nav) {
           const todayStr = today.toISOString().split('T')[0];
@@ -59,6 +59,20 @@ function App() {
       });
     }
   }, [activeFund, activeTab]);
+
+  // Fetch comparison data
+  useEffect(() => {
+    if (activeTab === 'compare') {
+      const today = new Date();
+      const threeYearsAgo = new Date();
+      threeYearsAgo.setFullYear(today.getFullYear() - 3);
+      
+      const fromDate = threeYearsAgo.toISOString().split('T')[0];
+      const toDate = today.toISOString().split('T')[0];
+      
+      fetchComparisonData(VCBF_FUNDS, fromDate, toDate).then(setCompareData);
+    }
+  }, [activeTab]);
 
 
   // Update activeFund after fund data refreshes (keep selection in sync)
@@ -88,7 +102,7 @@ function App() {
               onClick={() => setActiveTab('holdings')}
               style={{ background: 'transparent', border: 'none', textAlign: 'left', width: '100%' }}
             >
-              <PieChart size={20} /> Danh mục quỹ
+              <PieChart size={20} /> Fund Holdings
             </button>
             <button 
               className={`nav-item ${activeTab === 'portfolio' ? 'active' : ''}`}
@@ -96,6 +110,13 @@ function App() {
               style={{ background: 'transparent', border: 'none', textAlign: 'left', width: '100%' }}
             >
               <Wallet size={20} /> My Portfolio
+            </button>
+            <button 
+              className={`nav-item ${activeTab === 'compare' ? 'active' : ''}`}
+              onClick={() => setActiveTab('compare')}
+              style={{ background: 'transparent', border: 'none', textAlign: 'left', width: '100%' }}
+            >
+              <LineChart size={20} /> Compare Funds
             </button>
             <button 
               className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
@@ -114,10 +135,10 @@ function App() {
           </div>
         </div>
         <div className="px-4 text-sm text-muted mt-auto">
-          <p>Dữ liệu từ Fmarket</p>
+          <p>Data provided by Fmarket</p>
           {lastUpdated && (
             <p className="mt-1 text-xs">
-              Cập nhật: {lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+              Last updated: {lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
             </p>
           )}
         </div>
@@ -128,13 +149,13 @@ function App() {
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-xl animate-fade-in-up text-green" style={{textShadow: '0 0 10px var(--primary-glow)'}}>
-              Đang tải dữ liệu VCBF...
+              Loading VCBF data...
             </div>
           </div>
         ) : (
           <>
-            {/* Top Funds Row - Visible on Dashboard, Holdings and History */}
-            {(activeTab === 'dashboard' || activeTab === 'history' || activeTab === 'holdings') && (
+            {/* Top Funds Row - Visible everywhere except Calculator and Portfolio */}
+            {['dashboard', 'history', 'holdings'].includes(activeTab) && (
               <div className="animate-fade-in-up mb-6">
                 <h2 className="text-2xl font-bold mb-4">VCBF Open-Ended Funds {" "}
                   <span className="text-sm font-normal text-muted bg-green/10 text-green px-2 py-1 rounded" style={{background: 'rgba(46, 160, 67, 0.1)'}}>LIVE</span>
@@ -153,28 +174,23 @@ function App() {
               </div>
             )}
 
-            {/* Dashboard View - Chart + Gold Price */}
+            {/* Dashboard View - Chart + Performance */}
             {activeTab === 'dashboard' && activeFund && (
               <div className="animate-fade-in-up animate-delay-2">
-                {/* Gold Price Widget */}
-                <div className="mb-6">
-                  <GoldPrice />
-                </div>
-
                 {/* Performance Summary for active fund */}
                 {activeFund.navTo1Month !== undefined && (
                   <div className="glass-panel p-4 mb-6">
                     <h3 className="font-bold mb-3" style={{ color: 'var(--primary-color)' }}>
-                      Hiệu suất {activeFund.shortName} (%)
+                      Performance {activeFund.shortName} (%)
                     </h3>
                     <div className="perf-grid">
                       {[
-                        { label: '1 Tháng', val: activeFund.navTo1Month },
-                        { label: '3 Tháng', val: activeFund.navTo3Months },
-                        { label: '6 Tháng', val: activeFund.navTo6Months },
-                        { label: '12 Tháng', val: activeFund.navTo12Months },
-                        { label: '36 Tháng', val: activeFund.navTo36Months },
-                        { label: 'Từ đầu', val: activeFund.navToEstablish },
+                        { label: '1 Month', val: activeFund.navTo1Month },
+                        { label: '3 Months', val: activeFund.navTo3Months },
+                        { label: '6 Months', val: activeFund.navTo6Months },
+                        { label: '12 Months', val: activeFund.navTo12Months },
+                        { label: '36 Months', val: activeFund.navTo36Months },
+                        { label: 'Inception', val: activeFund.navToEstablish },
                       ].map(({ label, val }) => (
                         val !== null && val !== undefined ? (
                           <div key={label} className="perf-item">
@@ -192,7 +208,7 @@ function App() {
                 <div className="flex justify-between items-end mb-4">
                   <div>
                     <h3 className="text-xl font-bold">{activeFund.fullName} ({activeFund.shortName})</h3>
-                    <p className="text-muted">Biến động NAV (3 năm)</p>
+                    <p className="text-muted">NAV History (3 Years)</p>
                   </div>
                 </div>
                 <NavChart data={historyData} />
@@ -203,7 +219,7 @@ function App() {
             {activeTab === 'holdings' && activeFund && (
               <div className="animate-fade-in-up animate-delay-1">
                 <h3 className="text-xl font-bold mb-4">
-                  Danh mục đầu tư – {activeFund.fullName} ({activeFund.shortName})
+                  Top Holdings & Sectors – {activeFund.fullName} ({activeFund.shortName})
                 </h3>
                 <FundHoldings fund={activeFund} />
               </div>
@@ -212,6 +228,19 @@ function App() {
             {/* Portfolio View */}
             {activeTab === 'portfolio' && (
               <Portfolio funds={funds} />
+            )}
+
+            {/* Compare Funds View */}
+            {activeTab === 'compare' && (
+              <div className="animate-fade-in-up animate-delay-1">
+                <div className="flex justify-between items-end mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold">Multi-Fund Comparison</h3>
+                    <p className="text-muted">3-Year Growth Percentage (%)</p>
+                  </div>
+                </div>
+                <CompareChart data={compareData} funds={VCBF_FUNDS} />
+              </div>
             )}
 
             {/* History View */}
@@ -227,14 +256,14 @@ function App() {
                     <table className="w-full text-left" style={{ borderCollapse: 'collapse' }}>
                         <thead style={{ position: 'sticky', top: 0, background: 'var(--panel-bg)', backdropFilter: 'var(--glass-blur)' }}>
                         <tr>
-                            <th className="p-2 border-b" style={{ borderColor: 'var(--panel-border)' }}>Ngày</th>
+                            <th className="p-2 border-b" style={{ borderColor: 'var(--panel-border)' }}>Date</th>
                             <th className="p-2 border-b text-right" style={{ borderColor: 'var(--panel-border)' }}>NAV (VND)</th>
                         </tr>
                         </thead>
                         <tbody>
                         {[...historyData].reverse().map((d, i) => (
                             <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <td className="p-2">{new Date(d.navDate).toLocaleDateString('vi-VN')}</td>
+                            <td className="p-2">{new Date(d.navDate).toLocaleDateString('en-GB')}</td>
                             <td className="p-2 font-semibold text-right">{(d.nav).toLocaleString('vi-VN')}</td>
                             </tr>
                         ))}

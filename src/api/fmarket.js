@@ -143,3 +143,42 @@ export async function fetchGoldPrice() {
     return null;
   }
 }
+/**
+ * Fetch historical data for all given funds and normalize it to calculate percentage growth 
+ * over the selected time period. Useful for comparison charts.
+ */
+export async function fetchComparisonData(fundsList, fromDate, toDate) {
+  try {
+    const promises = fundsList.map(f => fetchHistory(f.id, fromDate, toDate));
+    const results = await Promise.all(promises);
+    
+    // Group all history points by date
+    const dateMap = {};
+    
+    fundsList.forEach((fund, index) => {
+      const history = results[index] || [];
+      // We need to calculate % growth from the first available point in this time range
+      if (history.length === 0) return;
+      
+      const baseNav = history[0].nav; // oldest point since history is chronological
+      
+      history.forEach(point => {
+        const date = point.navDate;
+        if (!dateMap[date]) dateMap[date] = { date };
+        
+        // Calculate % growth: (nav - baseNav) / baseNav * 100
+        const growth = ((point.nav - baseNav) / baseNav * 100);
+        dateMap[date][fund.shortName] = growth;
+      });
+    });
+
+    // Convert map to array and sort chronologically
+    const sortedDates = Object.keys(dateMap).sort((a, b) => a.localeCompare(b));
+    const finalData = sortedDates.map(d => dateMap[d]);
+    
+    return finalData;
+  } catch (err) {
+    console.error("Error fetching comparison data:", err);
+    return [];
+  }
+}

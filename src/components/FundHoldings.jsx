@@ -16,14 +16,18 @@ export default function FundHoldings({ fund }) {
       {/* Asset Allocation Pie-like bars */}
       {assetAllocation.length > 0 && (
         <div className="glass-panel p-4 mb-4">
-          <h3 className="font-bold mb-3" style={{ color: 'var(--primary-color)' }}>Phân bổ tài sản</h3>
+          <h3 className="font-bold mb-3" style={{ color: 'var(--primary-color)' }}>Asset Allocation</h3>
           <div className="allocation-bars">
             {assetAllocation.map((item) => (
               <div key={item.id || item.assetType?.code} className="allocation-row">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm font-semibold">
                     <span className="asset-dot" style={{ background: item.assetType?.colorCode || assetColors[item.assetType?.code] || '#aaa' }}></span>
-                    {item.assetType?.name}
+                    {item.assetType?.name === 'Tiền và TD tiền' ? 'Cash & Equivalents' :
+                     item.assetType?.name === 'Cổ phiếu' ? 'Equities' :
+                     item.assetType?.name === 'Trái phiếu' ? 'Fixed Income' :
+                     item.assetType?.name === 'Chứng chỉ quỹ' ? 'Fund Certificates' :
+                     item.assetType?.name}
                   </span>
                   <span className="text-sm font-bold">{item.assetPercent?.toFixed(2)}%</span>
                 </div>
@@ -47,7 +51,7 @@ export default function FundHoldings({ fund }) {
         {/* Industry Allocation */}
         {industryHoldings.length > 0 && (
           <div className="glass-panel p-4">
-            <h3 className="font-bold mb-3" style={{ color: 'var(--primary-color)' }}>Phân bổ ngành</h3>
+            <h3 className="font-bold mb-3" style={{ color: 'var(--primary-color)' }}>Top Sectors</h3>
             <div className="industry-list">
               {industryHoldings.map((item, i) => (
                 <div key={i} className="industry-row">
@@ -70,7 +74,7 @@ export default function FundHoldings({ fund }) {
         {/* Top Stock Holdings */}
         {topHoldings.length > 0 && (
           <div className="glass-panel p-4">
-            <h3 className="font-bold mb-3" style={{ color: 'var(--primary-color)' }}>Top cổ phiếu nắm giữ</h3>
+            <h3 className="font-bold mb-3" style={{ color: 'var(--primary-color)' }}>Top 10 Holdings</h3>
             <div className="top-holdings-list">
               {topHoldings.slice(0, 10).map((h, i) => {
                 const isPos = h.changeFromPrevious >= 0;
