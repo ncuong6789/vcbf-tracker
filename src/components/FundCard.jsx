@@ -21,7 +21,7 @@ export default function FundCard({ fund, onClick, isActive }) {
       </div>
       <div className={`flex items-center gap-1 font-semibold ${isPositive ? 'text-green' : 'text-red'}`}>
         {isPositive ? '▲' : '▼'}
-        {fund.change ? Math.abs(fund.change).toLocaleString('vi-VN') : '---'} 
+        {fund.change ? Math.round(Math.abs(fund.change)).toLocaleString('vi-VN') : '---'} 
         ({fund.changePercent ? fund.changePercent.toFixed(2) : '0.00'}%)
       </div>
     </div>
